@@ -1,0 +1,11 @@
+[Unit]
+Description=A Discord bot that reacts to messages based on patterns
+
+[Service]
+Type=notify
+ExecStart=/bin/false
+SyslogIdentifier=PinArchiveBot
+
+[Install]
+WantedBy=multi-user.target
+
