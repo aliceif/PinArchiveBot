@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Discord;
 using Discord.WebSocket;
 using PinArchiveBot.Core;
+using PinArchiveBot.Core.Setup;
 using PinArchiveBot.Service;
 
 IHost host = Host.CreateDefaultBuilder(args)
@@ -38,6 +39,8 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 		services.AddSingleton(client);
 		services.AddSingleton<DiscordEventDispatcher>();
+
+		services.AddOptions<SetupOptions>(nameof(SetupOptions));
 	})
 	.Build();
 
