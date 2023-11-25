@@ -111,7 +111,9 @@ namespace PinArchiveBot.Core
 							.WithAuthor(message.Author)
 							.WithColor(Color.Gold)
 							.WithUrl(message.GetJumpUrl());
-					contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder().WithName("Message text").WithValue(message.Content));
+					contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder()
+						.WithName("Message text")
+						.WithValue((string?)(string.IsNullOrEmpty(message.Content) ? "(empty)" : message.Content)));
 					var contentEmbed = contentEmbedBuilder.Build();
 
 					var imageEmbeds = message.Attachments
