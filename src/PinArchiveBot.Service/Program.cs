@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
 using PinArchiveBot.Core;
 using PinArchiveBot.Core.Setup;
@@ -39,6 +40,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 		services.AddSingleton(client);
 		services.AddSingleton<DiscordEventDispatcher>();
+		services.AddSingleton<CommandService>(_ => new CommandService(new CommandServiceConfig { DefaultRunMode = RunMode.Async }));
 
 		services.AddSingleton<ISetupRepository, JsonSetupRepository>();
 
