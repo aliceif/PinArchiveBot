@@ -40,6 +40,8 @@ IHost host = Host.CreateDefaultBuilder(args)
 		services.AddSingleton(client);
 		services.AddSingleton<DiscordEventDispatcher>();
 
+		services.AddSingleton<ISetupRepository, JsonSetupRepository>();
+
 		services.AddOptions<SetupOptions>(nameof(SetupOptions));
 	})
 	.Build();

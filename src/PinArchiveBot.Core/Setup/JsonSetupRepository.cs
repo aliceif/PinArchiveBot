@@ -6,6 +6,7 @@ namespace PinArchiveBot.Core.Setup
 	public class JsonSetupRepository : ISetupRepository
 	{
 		private readonly SetupOptions options;
+		private readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true };
 
 		public JsonSetupRepository(IOptions<SetupOptions> options)
 		{
@@ -14,19 +15,39 @@ namespace PinArchiveBot.Core.Setup
 
 		public async Task<GuildSetup> ReadGuildSetup(ulong guildId)
 		{
-			using var fileStream = File.OpenRead(this.options.SetupFilePath);
-			var guildSetups = await JsonSerializer
-				.DeserializeAsync<Dictionary<ulong, GuildSetup>>(fileStream) ?? [];
-			return guildSetups.TryGetValue(guildId, out var guildSetup) ? guildSetup : new GuildSetup(guildId, null, []);
+			try
+			{
+				var targetPath = Path.IsPathRooted(this.options.SetupFilePath)
+					? this.options.SetupFilePath
+					: Path.Combine(AppContext.BaseDirectory, this.options.SetupFilePath);
+				using var fileStream = File.OpenRead(targetPath);
+				using var reader = new StreamReader(fileStream);
+				var content = await reader.ReadToEndAsync();
+
+				var guildSetups = string.IsNullOrWhiteSpace(content) ? [] : JsonSerializer.Deserialize<Dictionary<ulong, GuildSetup>>(content, this.jsonSerializerOptions) ?? [];
+				return guildSetups.TryGetValue(guildId, out var guildSetup) ? guildSetup : new GuildSetup(guildId, null, []);
+			}
+			catch (FileNotFoundException)
+			{
+				return new GuildSetup(guildId, null, []);
+			}
 		}
 
 		public async Task WriteGuildSetup(GuildSetup guildSetup)
 		{
-			using var fileStream = File.Open(this.options.SetupFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-			var guildSetups = await JsonSerializer
-				.DeserializeAsync<Dictionary<ulong, GuildSetup>>(fileStream) ?? [];
+			var targetPath = Path.IsPathRooted(this.options.SetupFilePath)
+				? this.options.SetupFilePath
+				: Path.Combine(AppContext.BaseDirectory, this.options.SetupFilePath);
+
+			using var fileStream = File.Open(targetPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+			using var reader = new StreamReader(fileStream);
+			var content = await reader.ReadToEndAsync();
+
+			var guildSetups = string.IsNullOrWhiteSpace(content) ? [] : JsonSerializer.Deserialize<Dictionary<ulong, GuildSetup>>(content) ?? [];
 			guildSetups[guildSetup.GuildId] = guildSetup;
-			await JsonSerializer.SerializeAsync(fileStream, guildSetups, new JsonSerializerOptions { WriteIndented = true });
+
+			fileStream.Seek(0, SeekOrigin.Begin);
+			await JsonSerializer.SerializeAsync(fileStream, guildSetups, this.jsonSerializerOptions);
 		}
 	}
 }
