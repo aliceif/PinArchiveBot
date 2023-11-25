@@ -1,4 +1,7 @@
 ﻿namespace PinArchiveBot.Core.Setup
 {
-	public record class SetupOptions(string SetupFilePath);
+	public class SetupOptions
+	{
+		public string SetupFilePath { get; init; } = "setup.json";
+	}
 }
