@@ -1,9 +1,13 @@
-﻿using System.Globalization;
+﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Net.Mail;
 using System.Reflection;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
+using PinArchiveBot.Core.Setup;
 
 namespace PinArchiveBot.Core
 {
@@ -13,8 +17,9 @@ namespace PinArchiveBot.Core
 		private readonly ILogger<DiscordEventDispatcher> logger;
 		private readonly DiscordSocketClient client;
 		private readonly CommandService commandService;
+		private readonly ISetupRepository setupRepository;
 
-		public DiscordEventDispatcher(IServiceProvider serviceProvider, ILogger<DiscordEventDispatcher> logger, DiscordSocketClient client, CommandService commandService)
+		public DiscordEventDispatcher(IServiceProvider serviceProvider, ILogger<DiscordEventDispatcher> logger, DiscordSocketClient client, CommandService commandService, ISetupRepository setupRepository)
 		{
 			this.serviceProvider = serviceProvider;
 
@@ -24,8 +29,11 @@ namespace PinArchiveBot.Core
 			this.client.Ready += this.Client_Ready;
 
 			this.client.MessageReceived += this.Client_MessageReceived;
+			this.client.ReactionAdded += this.Client_ReactionAdded;
 
 			this.commandService = commandService;
+
+			this.setupRepository = setupRepository;
 		}
 
 		private async Task Client_Ready()
@@ -70,6 +78,53 @@ namespace PinArchiveBot.Core
 				services: this.serviceProvider);
 
 			return;
+		}
+
+		private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> cacheableUserMessage, Cacheable<IMessageChannel, ulong> cacheableMessagechannel, SocketReaction reaction)
+		{
+			var message = await cacheableUserMessage.GetOrDownloadAsync();
+			var channel = await cacheableMessagechannel.GetOrDownloadAsync();
+			var context = new CommandContext(this.client, message);
+			if (context.IsPrivate)
+			{
+				return;
+			}
+
+			if (reaction.Emote.Equals(new Emoji("📌")))
+			{
+				var reactingGuildUser = await context.Guild.GetUserAsync(reaction.UserId);
+				var guildChannel = await context.Guild.GetChannelAsync(channel.Id);
+
+				var hasPinPermission = reactingGuildUser.GuildPermissions.ManageMessages || reactingGuildUser.GetPermissions(guildChannel).ManageMessages;
+				if (hasPinPermission)
+				{
+					GuildSetup guildSetup = await this.setupRepository.ReadGuildSetup(context.Guild.Id);
+
+					if (!guildSetup.SingleTargetChannelId.HasValue)
+					{
+						return;
+					}
+
+					var pinChannel = await context.Guild.GetTextChannelAsync(guildSetup.SingleTargetChannelId.Value);
+
+					var contentEmbedBuilder = new EmbedBuilder()
+							.WithAuthor(message.Author)
+							.WithColor(Color.Gold)
+							.WithUrl(message.GetJumpUrl());
+					contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder().WithName("Message text").WithValue(message.Content));
+					var contentEmbed = contentEmbedBuilder.Build();
+
+					var imageEmbeds = message.Attachments
+						.Where(a => a is { Height: not null, Width: not null })
+						.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(Color.Gold).Build());
+
+					var embedEmbeds = message.Embeds.OfType<Embed>();
+
+					var embeds = Enumerable.Empty<Embed>().Append(contentEmbed).Concat(imageEmbeds).Concat(embedEmbeds).ToArray();
+
+					await pinChannel.SendMessageAsync($"pinned {message.GetJumpUrl()}", embeds: embeds);
+				}
+			}
 		}
 	}
 }
