@@ -29,12 +29,12 @@ namespace PinArchiveBot.Core.Setup
 				var content = await reader.ReadToEndAsync();
 
 				var guildSetups = string.IsNullOrWhiteSpace(content) ? [] : JsonSerializer.Deserialize<Dictionary<ulong, GuildSetup>>(content, this.jsonSerializerOptions) ?? [];
-				return guildSetups.TryGetValue(guildId, out var guildSetup) ? guildSetup : new GuildSetup(guildId, null, []);
+				return guildSetups.TryGetValue(guildId, out var guildSetup) ? guildSetup : new GuildSetup(guildId, null, [], false);
 			}
 			catch (FileNotFoundException)
 			{
 				this.logger.LogWarning("Setup file did not exist yet?  {SetupFilePath}, effectively {TargetPath}", this.options.SetupFilePath, targetPath);
-				return new GuildSetup(guildId, null, []);
+				return new GuildSetup(guildId, null, [], false);
 			}
 		}
 

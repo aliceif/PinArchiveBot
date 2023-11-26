@@ -28,6 +28,7 @@ namespace PinArchiveBot.Core.TextCommands
 
 			sb.AppendLine("The following commands are available for setting up:");
 			sb.AppendLine("channel [channel link or id]: the channel to post pins for this guild into");
+			sb.AppendLine("livepin [true or false]: automatically copy all newly made pins from now on (or don't)");
 			return this.ReplyAsync(sb.ToString());
 		}
 
@@ -44,6 +45,22 @@ namespace PinArchiveBot.Core.TextCommands
 			var storedSetup = await this.setupRepository.ReadGuildSetup(this.Context.Guild.Id);
 			await this.setupRepository.WriteGuildSetup(storedSetup with { SingleTargetChannelId = channel.Id });
 			await this.ReplyAsync($"{channel.Name} is set as the pins channel for this guild.");
+		}
+
+		[Command("livepin")]
+		[Summary("Copies pins as they happen.")]
+		public async Task LivePinAsync(bool value)
+		{
+			var storedSetup = await this.setupRepository.ReadGuildSetup(this.Context.Guild.Id);
+			await this.setupRepository.WriteGuildSetup(storedSetup with { LivePin = value });
+			if (value)
+			{
+				await this.ReplyAsync("New pins will now automatically be sent to the configured channel.");
+			}
+			else
+			{
+				await this.ReplyAsync("New pins will not be automatically processed, only manual pinning by reaction is available.");
+			}
 		}
 	}
 }

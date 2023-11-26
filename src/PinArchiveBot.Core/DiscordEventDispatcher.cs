@@ -30,6 +30,7 @@ namespace PinArchiveBot.Core
 
 			this.client.MessageReceived += this.Client_MessageReceived;
 			this.client.ReactionAdded += this.Client_ReactionAdded;
+			this.client.AuditLogCreated += this.Client_AuditLogCreated;
 
 			this.commandService = commandService;
 
@@ -98,35 +99,55 @@ namespace PinArchiveBot.Core
 				var hasPinPermission = reactingGuildUser.GuildPermissions.ManageMessages || reactingGuildUser.GetPermissions(guildChannel).ManageMessages;
 				if (hasPinPermission)
 				{
-					GuildSetup guildSetup = await this.setupRepository.ReadGuildSetup(context.Guild.Id);
-
-					if (!guildSetup.SingleTargetChannelId.HasValue)
-					{
-						return;
-					}
-
-					var pinChannel = await context.Guild.GetTextChannelAsync(guildSetup.SingleTargetChannelId.Value);
-
-					var contentEmbedBuilder = new EmbedBuilder()
-							.WithAuthor(message.Author)
-							.WithColor(Color.Gold)
-							.WithUrl(message.GetJumpUrl());
-					contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder()
-						.WithName("Message text")
-						.WithValue((string?)(string.IsNullOrEmpty(message.Content) ? "(empty)" : message.Content)));
-					var contentEmbed = contentEmbedBuilder.Build();
-
-					var imageEmbeds = message.Attachments
-						.Where(a => a is { Height: not null, Width: not null })
-						.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(Color.Gold).Build());
-
-					var embedEmbeds = message.Embeds.OfType<Embed>();
-
-					var embeds = Enumerable.Empty<Embed>().Append(contentEmbed).Concat(imageEmbeds).Concat(embedEmbeds).ToArray();
-
-					await pinChannel.SendMessageAsync($"pinned {message.GetJumpUrl()}", embeds: embeds);
+					await this.CreatePinMessageForMessage(context.Guild, message);
 				}
 			}
+		}
+
+		private async Task Client_AuditLogCreated(SocketAuditLogEntry auditLog, SocketGuild guild)
+		{
+			if (auditLog.Data is SocketMessagePinAuditLogData pinAuditLogData)
+			{
+				var guildSetup = await this.setupRepository.ReadGuildSetup(guild.Id);
+				if (!guildSetup.LivePin)
+				{
+					return;
+				}
+
+				var message = await guild.GetTextChannel(pinAuditLogData.ChannelId).GetMessageAsync(pinAuditLogData.MessageId);
+				await this.CreatePinMessageForMessage(guild, message);
+			}
+		}
+
+		private async Task CreatePinMessageForMessage(IGuild guild, IMessage message)
+		{
+			GuildSetup guildSetup = await this.setupRepository.ReadGuildSetup(guild.Id);
+
+			if (!guildSetup.SingleTargetChannelId.HasValue)
+			{
+				return;
+			}
+
+			var pinChannel = await guild.GetTextChannelAsync(guildSetup.SingleTargetChannelId.Value);
+
+			var contentEmbedBuilder = new EmbedBuilder()
+					.WithAuthor(message.Author)
+					.WithColor(Color.Gold)
+					.WithUrl(message.GetJumpUrl());
+			contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder()
+				.WithName("Message text")
+				.WithValue((string?)(string.IsNullOrEmpty(message.Content) ? "(empty)" : message.Content)));
+			var contentEmbed = contentEmbedBuilder.Build();
+
+			var imageEmbeds = message.Attachments
+				.Where(a => a is { Height: not null, Width: not null })
+				.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(Color.Gold).Build());
+
+			var embedEmbeds = message.Embeds.OfType<Embed>();
+
+			var embeds = Enumerable.Empty<Embed>().Append(contentEmbed).Concat(imageEmbeds).Concat(embedEmbeds).ToArray();
+
+			await pinChannel.SendMessageAsync($"pinned {message.GetJumpUrl()}", embeds: embeds);
 		}
 	}
 }
