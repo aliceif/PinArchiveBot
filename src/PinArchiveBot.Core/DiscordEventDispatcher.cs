@@ -13,6 +13,29 @@ namespace PinArchiveBot.Core
 {
 	public class DiscordEventDispatcher
 	{
+		private static readonly Color[] EmbedColors = [
+			Color.Blue,
+			Color.DarkBlue,
+			Color.DarkerGrey,
+			Color.DarkGreen,
+			Color.DarkGrey,
+			Color.DarkMagenta,
+			Color.DarkOrange,
+			Color.DarkPurple,
+			Color.DarkRed,
+			Color.DarkTeal,
+			Color.Gold,
+			Color.Green,
+			Color.LighterGrey,
+			Color.LightGrey,
+			Color.LightOrange,
+			Color.Magenta,
+			Color.Orange,
+			Color.Purple,
+			Color.Red,
+			Color.Teal,
+		];
+
 		private readonly IServiceProvider serviceProvider;
 		private readonly ILogger<DiscordEventDispatcher> logger;
 		private readonly DiscordSocketClient client;
@@ -162,11 +185,13 @@ namespace PinArchiveBot.Core
 				return;
 			}
 
+			var embedColor = Random.Shared.GetItems(EmbedColors, 1).Single();
+
 			var pinChannel = await guild.GetTextChannelAsync(guildSetup.SingleTargetChannelId.Value);
 
 			var contentEmbedBuilder = new EmbedBuilder()
 					.WithAuthor(message.Author)
-					.WithColor(Color.Gold)
+					.WithColor(embedColor)
 					.WithUrl(message.GetJumpUrl());
 			contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder()
 				.WithName("Message text")
@@ -175,7 +200,7 @@ namespace PinArchiveBot.Core
 
 			var imageEmbeds = message.Attachments
 				.Where(a => a is { Height: not null, Width: not null })
-				.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(Color.Gold).Build());
+				.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(embedColor).Build());
 
 			var embedEmbeds = message.Embeds.OfType<Embed>();
 
