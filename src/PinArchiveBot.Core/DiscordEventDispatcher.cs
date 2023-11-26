@@ -37,6 +37,17 @@ namespace PinArchiveBot.Core
 			this.setupRepository = setupRepository;
 		}
 
+		private static LogLevel MapSeverity(LogSeverity logSeverity) => logSeverity switch
+		{
+			LogSeverity.Critical => LogLevel.Critical,
+			LogSeverity.Error => LogLevel.Error,
+			LogSeverity.Warning => LogLevel.Warning,
+			LogSeverity.Info => LogLevel.Information,
+			LogSeverity.Verbose => LogLevel.Debug,
+			LogSeverity.Debug => LogLevel.Trace,
+			_ => LogLevel.None,
+		};
+
 		private async Task Client_Ready()
 		{
 			await this.client.SetGameAsync("helping with your pins", type: ActivityType.CustomStatus);
@@ -50,6 +61,19 @@ namespace PinArchiveBot.Core
 			// If you do not use Dependency Injection, pass null.
 			// See Dependency Injection guide for more information.
 			await this.commandService.AddModulesAsync(assembly: Assembly.GetAssembly(typeof(DiscordEventDispatcher)), services: this.serviceProvider);
+
+			// Forward command log events to logging infrastructure
+			this.commandService.Log += msg => Task.Run(() => this.LogCommandServiceLog(msg));
+		}
+
+		private void LogCommandServiceLog(LogMessage logMessage)
+		{
+			this.logger.Log(
+				logLevel: MapSeverity(logMessage.Severity),
+				exception: logMessage.Exception ?? null,
+				message: "Discord.NET Command Service ({Source}): {DiscordNetMessage}",
+				logMessage.Source ?? "unknown",
+				logMessage.Message ?? logMessage.Exception?.Message ?? "An error occurred.");
 		}
 
 		private async Task Client_MessageReceived(SocketMessage messageParam)
