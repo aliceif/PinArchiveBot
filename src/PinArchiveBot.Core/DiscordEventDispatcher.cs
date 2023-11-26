@@ -66,8 +66,18 @@ namespace PinArchiveBot.Core
 			int argPos = 0;
 
 			// Determine if the message is a command based on the prefix and make sure no bots trigger commands
-			if (message.Author.IsBot || !message.HasMentionPrefix(this.client.CurrentUser, ref argPos))
+			if (message.Author.IsBot)
 			{
+				return;
+			}
+
+			if (!message.HasMentionPrefix(this.client.CurrentUser, ref argPos))
+			{
+				if (message.MentionedUsers.Any(m => m.Id == this.client.CurrentUser.Id))
+				{
+					await message.ReplyAsync($"Hello! If you want help getting set up, please ask me: {this.client.CurrentUser.Mention} setup help");
+				}
+
 				return;
 			}
 
