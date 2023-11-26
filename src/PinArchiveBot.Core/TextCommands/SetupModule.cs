@@ -27,8 +27,10 @@ namespace PinArchiveBot.Core.TextCommands
 			var sb = new StringBuilder();
 
 			sb.AppendLine("The following commands are available for setting up:");
-			sb.AppendLine("channel [channel link or id]: the channel to post pins for this guild into");
-			sb.AppendLine("livepin [true or false]: automatically copy all newly made pins from now on (or don't)");
+			sb.AppendLine("`channel` [channel link or id]: the channel to post pins for this guild into");
+			sb.AppendLine("`livepin` [true or false]: automatically copy all newly made pins from now on (or don't)");
+			sb.AppendLine("You can check your configuration:");
+			sb.AppendLine("`querysetup`");
 			return this.ReplyAsync(sb.ToString());
 		}
 
@@ -61,6 +63,26 @@ namespace PinArchiveBot.Core.TextCommands
 			{
 				await this.ReplyAsync("New pins will not be automatically processed, only manual pinning by reaction is available.");
 			}
+		}
+
+		[Command("querysetup")]
+		[Summary("Queries the current setup.")]
+		public async Task QuerySetupAsync()
+		{
+			var storedSetup = await this.setupRepository.ReadGuildSetup(this.Context.Guild.Id);
+			var sb = new StringBuilder();
+			sb.AppendLine($"Setup for guild \"{this.Context.Guild.Name}\" ({this.Context.Guild.Id}):");
+			if (storedSetup.SingleTargetChannelId.HasValue)
+			{
+				sb.AppendLine($"channel: <#{storedSetup.SingleTargetChannelId.Value}> ({storedSetup.SingleTargetChannelId})");
+			}
+			else
+			{
+				sb.AppendLine($"channel: not set");
+			}
+
+			sb.AppendLine($"livepin: {storedSetup.LivePin}");
+			await this.ReplyAsync(sb.ToString());
 		}
 	}
 }
