@@ -190,19 +190,44 @@ namespace PinArchiveBot.Core
 			var pinChannel = await guild.GetTextChannelAsync(guildSetup.SingleTargetChannelId.Value);
 
 			var contentEmbedBuilder = new EmbedBuilder()
-					.WithAuthor(message.Author)
-					.WithColor(embedColor)
-					.WithUrl(message.GetJumpUrl());
-			contentEmbedBuilder.Fields.Add(new EmbedFieldBuilder()
-				.WithName("Message text")
-				.WithValue((string?)(string.IsNullOrEmpty(message.Content) ? "(empty)" : message.Content)));
+				.WithAuthor(message.Author)
+				.WithColor(embedColor)
+				.WithUrl(message.GetJumpUrl());
+
+			if (!string.IsNullOrEmpty(message.Content))
+			{
+				contentEmbedBuilder = contentEmbedBuilder.WithFields(new EmbedFieldBuilder()
+					.WithName("Message text")
+					.WithValue(message.Content));
+			}
+
+			contentEmbedBuilder = contentEmbedBuilder
+				.WithFooter(new EmbedFooterBuilder()
+				.WithText($"{message.Timestamp:yyyy-MM-dd HH:mm:ss}"));
+
 			var contentEmbed = contentEmbedBuilder.Build();
 
 			var imageEmbeds = message.Attachments
 				.Where(a => a is { Height: not null, Width: not null })
 				.Select((attachment) => new EmbedBuilder().WithImageUrl(attachment.Url).WithColor(embedColor).Build());
 
-			var embedEmbeds = message.Embeds.OfType<Embed>();
+			List<Embed> embedEmbeds = [];
+			foreach (var embed in message.Embeds.OfType<Embed>())
+			{
+				if (embed.Type != EmbedType.Article)
+				{
+					embedEmbeds.Add(embed);
+					continue;
+				}
+
+				if (!embed.Thumbnail.HasValue)
+				{
+					embedEmbeds.Add(embed);
+					continue;
+				}
+
+				embedEmbeds.Add(new EmbedBuilder().WithTitle(embed.Title).WithUrl(embed.Url).WithDescription(embed.Description).WithImageUrl(embed.Thumbnail.Value.ProxyUrl).WithColor(embedColor).Build());
+			}
 
 			var embeds = Enumerable.Empty<Embed>().Append(contentEmbed).Concat(imageEmbeds).Concat(embedEmbeds).ToArray();
 
