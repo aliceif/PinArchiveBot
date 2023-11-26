@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace PinArchiveBot.Core.Setup
@@ -6,20 +7,23 @@ namespace PinArchiveBot.Core.Setup
 	public class JsonSetupRepository : ISetupRepository
 	{
 		private readonly SetupOptions options;
+		private readonly ILogger<JsonSetupRepository> logger;
+
 		private readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true };
 
-		public JsonSetupRepository(IOptions<SetupOptions> options)
+		public JsonSetupRepository(IOptions<SetupOptions> options, ILogger<JsonSetupRepository> logger)
 		{
 			this.options = options.Value;
+			this.logger = logger;
 		}
 
 		public async Task<GuildSetup> ReadGuildSetup(ulong guildId)
 		{
+			var targetPath = Path.IsPathRooted(this.options.SetupFilePath)
+				? this.options.SetupFilePath
+				: Path.Combine(AppContext.BaseDirectory, this.options.SetupFilePath);
 			try
 			{
-				var targetPath = Path.IsPathRooted(this.options.SetupFilePath)
-					? this.options.SetupFilePath
-					: Path.Combine(AppContext.BaseDirectory, this.options.SetupFilePath);
 				using var fileStream = File.OpenRead(targetPath);
 				using var reader = new StreamReader(fileStream);
 				var content = await reader.ReadToEndAsync();
@@ -29,6 +33,7 @@ namespace PinArchiveBot.Core.Setup
 			}
 			catch (FileNotFoundException)
 			{
+				this.logger.LogWarning("Setup file did not exist yet?  {SetupFilePath}, effectively {TargetPath}", this.options.SetupFilePath, targetPath);
 				return new GuildSetup(guildId, null, []);
 			}
 		}

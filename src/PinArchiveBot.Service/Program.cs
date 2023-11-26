@@ -27,7 +27,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 			builder.AddJournal(options => options.SyslogIdentifier = hostContext.Configuration["SyslogIdentifier"]);
 		}
 	})
-	.ConfigureServices(services =>
+	.ConfigureServices((hostContext, services) =>
 	{
 		services.AddHostedService<Worker>();
 
@@ -44,7 +44,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 		services.AddSingleton<ISetupRepository, JsonSetupRepository>();
 
-		services.AddOptions<SetupOptions>(nameof(SetupOptions));
+		services.AddOptions<SetupOptions>().Bind(hostContext.Configuration.GetSection(nameof(SetupOptions)));
 	})
 	.Build();
 
